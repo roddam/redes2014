@@ -11,12 +11,14 @@ public class Redbot {
 		try {
 			procesamiento.parserEntrada();
 			procesamiento.inicializarRedbot();
+			procesamiento.DFS();
 		} catch (NumberFormatException e) {
 			System.out.println("########## SE ROMPIO #############");
+			e.printStackTrace();
 		} catch (Exception e) {
-			System.out.println(e.getMessage());
+			System.out.println("################################# " + e.getMessage());
+			e.printStackTrace();
 		}
-
 	}
 
 	/*
