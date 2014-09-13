@@ -37,6 +37,10 @@ public class Redbot {
 				BufferedReader br = new BufferedReader(new InputStreamReader(sc.getInputStream()));
 				String html;
 				
+				while ((html = br.readLine()) != null) {
+					
+				}
+				
 				/* aca saco los mails */
 				
 //				for (String url : listaMail) {
