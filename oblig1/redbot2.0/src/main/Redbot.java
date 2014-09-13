@@ -47,7 +47,7 @@ public class Redbot {
 				br.close();
 				sc.close();
 				
-				e.imprimirMails(mails, urlString);
+//				e.imprimirMails(mails, urlString);
 				
 			}
 		} catch (MalformedURLException e) {
