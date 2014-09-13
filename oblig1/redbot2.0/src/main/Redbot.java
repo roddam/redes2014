@@ -38,21 +38,31 @@ public class Redbot {
 				pw.flush();
 				
 				BufferedReader br = new BufferedReader(new InputStreamReader(sc.getInputStream()));
-				String html;
-				
-				Pattern pat = Pattern.compile("<a href=\"([^ ]*)\"( .*)?/a>");
-				while ((html = br.readLine()) != null) {
-					if (html.contains("href")) {
-						Matcher match = pat.matcher(html);
-						while (match.find()) {
-							System.out.println();
+				String html = br.readLine();
+//				<a href=\"(.*)(\" .*)*\">.*</a>
+//				<a href=\"([^ ]*)\"( .*)?/a>
+				Pattern patURLs = Pattern.compile("<a href=\"((http://|/)[^ ]*)(\" .*)*\">.*</a>");
+				Pattern patMails = Pattern.compile("<a href=\"((http://|/)[^ ]*)(\" .*)*\">.*</a>");
+				if (html.contains("200 OK")) {
+					while ((html = br.readLine()) != null) {
+						Matcher matchURLs = patURLs.matcher(html);
+						Matcher matchMails = patMails.matcher(html);
+						while (matchURLs.find()) {
+							System.out.println("######");
+							System.out.println(matchURLs.group(1));
+							System.out.println("######");
 						}
+						//aca saco las URLs y los mails
+//						Matcher match = pat.matcher(html);
+//						while (match.find()) {
+//							System.out.println(match.group(1));
+//						}
 					}
-					//aca saco las URLs y los mails
-//					Matcher match = pat.matcher(html);
-//					while (match.find()) {
-//						System.out.println(match.group(1));
-//					}
+				} else {
+					br.close();
+					sc.close();
+					//FIXME meter un mensaje como la gente
+					throw new Exception(html);
 				}
 				
 				/* aca saco los mails */
