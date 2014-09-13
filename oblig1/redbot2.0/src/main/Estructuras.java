@@ -60,6 +60,7 @@ public class Estructuras {
 
 	private Estructuras() {
 		this.listaURLs = new LinkedList<String>();
+		this.nivelPorURL = new HashMap<String, Integer>();
 		this.visitados = new LinkedList<String>();
 		this.listaMails = new LinkedList<String>();
 		this.debug = false;
@@ -85,8 +86,8 @@ public class Estructuras {
 
 	public void inicializarEstructuras(Object[] args) throws Exception {
 		if (args.length > 0) {
-			this.listaURLs.add((String)args[args.length]);
-			for (int i = 0; i < args.length - 1; i++) {
+			this.listaURLs.add((String)args[args.length - 1]);
+			for (int i = 0; i < args.length - 2; i++) {
 				String entrada = (String) args[i];
 				switch (entrada) {
 				case "-d":
@@ -152,18 +153,21 @@ public class Estructuras {
 					throw new Exception("Parametro incorrecto" + Estructuras.mensajeErrorUsage);
 				}
 			}
-			this.nivelPorURL.put((String)args[args.length], this.profundidad);
+			this.nivelPorURL.put((String)args[args.length - 1], this.profundidad);
 		} else {
 			throw new Exception(Estructuras.mensajeErrorUsage);
 		}
 	}
 	
 	public String obtenerMensajeGET(URL url) {
-		String result = "GET " + url.getPath();
-		result = this.persistent? result + " HTTP/1.1" : result + " HTTP/1.0";
-		
+		String result = "GET ";
+		result = url.getPath().equals("")? result + "/" : result + url.getPath();
+		result = this.persistent? result + " HTTP/1.1\n" : result + " HTTP/1.0\n";
+		result = this.persistent? result + "Connection: keep-alive\n" : result + "Connection: close\n";
 		result = result + "Host: " + url.getHost();
 		result = result + "\n";
+		result = result + "Accept: text/html, text/plain\n";
+		
 		return result;
 	}
 	

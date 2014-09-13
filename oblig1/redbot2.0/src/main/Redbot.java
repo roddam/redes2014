@@ -7,12 +7,14 @@ import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.Socket;
 import java.net.URL;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Redbot {
 	
 	public int valor;
 
-	public static void main(Object[] args) {
+	public static void main(String[] args) {
 		try {
 			boolean soy_raiz = true;
 			Estructuras e = Estructuras.getInstance();
@@ -31,14 +33,26 @@ public class Redbot {
 				Socket sc = new Socket(ia, puerto);
 				
 				PrintWriter pw = new PrintWriter(sc.getOutputStream());
+				System.out.println(e.obtenerMensajeGET(urlEnProceso));
 				pw.println(e.obtenerMensajeGET(urlEnProceso));
 				pw.flush();
 				
 				BufferedReader br = new BufferedReader(new InputStreamReader(sc.getInputStream()));
 				String html;
 				
+				Pattern pat = Pattern.compile("<a href=\"([^ ]*)\"( .*)?/a>");
 				while ((html = br.readLine()) != null) {
-					
+					if (html.contains("href")) {
+						Matcher match = pat.matcher(html);
+						while (match.find()) {
+							System.out.println();
+						}
+					}
+					//aca saco las URLs y los mails
+//					Matcher match = pat.matcher(html);
+//					while (match.find()) {
+//						System.out.println(match.group(1));
+//					}
 				}
 				
 				/* aca saco los mails */
