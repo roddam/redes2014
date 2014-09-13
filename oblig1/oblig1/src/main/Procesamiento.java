@@ -174,83 +174,93 @@ public class Procesamiento {
 
 	// Ver si preferimos nombrar las variablas con algo menos asociado a grafos
 	public void DFS() {
-		String v = lista_URLs.remove(0); //asumo que lista_URLs es correcto pq los controles estan en el parser
-		System.out.println("############## URL que estoy procesando #################");
-		System.out.println(v);
-		System.out.println("#########################################################");
-		try {
-			URL url = new URL(this.baseURL);
-//			System.out.println("Host: " + url.getHost());
-//			System.out.println("Puerto: " + url.getPort());
-//			System.out.println("Path: " + url.getPath());
-			InetAddress ia = InetAddress.getByName(url.getHost());
-//			System.out.println("InetAddress: " + ia.getCanonicalHostName());
-			int puerto = url.getPort() == -1 ? Procesamiento.puertoDefecto : url.getPort();
-			Socket sc = new Socket(ia, puerto);
-			PrintWriter pw = new PrintWriter(sc.getOutputStream());
-			pw.println("GET " + url.getPath() + " HTTP/1.1");
-			pw.println("Host: " + url.getHost());
-			pw.println();
-			pw.flush();
-			
-			BufferedReader br = new BufferedReader(new InputStreamReader(sc.getInputStream()));
-			String html;
-//			href=\"http[s]?://([^\"]+)
-			Pattern pat = Pattern.compile("href=\"(http[s]?://[^\"]+)\"");
-			while ((html = br.readLine()) != null) {
-				Matcher match = pat.matcher(html);
-				while (match.find()) {
-					this.lista_URLs.add(match.group(1));
+		//while(!this.lista_URLs.isEmpty()){
+			String v = this.lista_URLs.remove(0); //asumo que lista_URLs es correcto pq los controles estan en el parser
+			System.out.println("############## URL que estoy procesando #################");
+			System.out.println(v);
+			System.out.println("#########################################################");
+			try {
+				if (this.profundidad == 0) {
+					// es pozo, por lo que vimos en el monitoreo creo que este es el caso de un pozo.
+					// "Si par�s por profundidad y tenes links de salida son "
+					System.out.println("############## PROFUNDIDAD es 0 #################");
+				} else {  
+					if (!this.visitados.contains(v)) { //ver si el casteo es necesario
+						this.visitados.add(v);
+						this.camino.add(v);
+						
+						// Preprocesamiento(v,lista_URLs,mails) 
+						//en lista_URLs agrego las URLs hijas para seguir navegando, mails lo uso para imprimir en pantalla
+						// Imprimir(mails) //Ver pq no respeto lo de tiempo real y sino imprimir en la funci�n anterior
+						/*****************/
+						URL url = new URL(v); // (this.baseURL); CREO QUE DEBERIA SER V
+						//System.out.println("Host: " + url.getHost());
+						//System.out.println("Puerto: " + url.getPort());
+						//System.out.println("Path: " + url.getPath());
+						InetAddress ia = InetAddress.getByName(url.getHost());
+						System.out.println("InetAddress: " + ia.getCanonicalHostName());
+						int puerto = url.getPort() == -1 ? Procesamiento.puertoDefecto : url.getPort();
+						Socket sc = new Socket(ia, puerto);
+						PrintWriter pw = new PrintWriter(sc.getOutputStream());
+						pw.println("GET " + url.getPath() + " HTTP/1.1");
+						pw.println("Host: " + url.getHost());
+						pw.println();
+						pw.flush();
+						
+						BufferedReader br = new BufferedReader(new InputStreamReader(sc.getInputStream()));
+						String html;
+	//					href=\"http[s]?://([^\"]+)
+						Pattern pat = Pattern.compile("href=\"(http[s]?://[^\"]+)\"");
+						while ((html = br.readLine()) != null) {
+							Matcher match = pat.matcher(html);
+							while (match.find()) {
+								this.lista_URLs.add(match.group(1));
+							}
+						}
+						br.close();
+						sc.close();	
+						/****************/
+						//System.out.println("################################ Mails encontrados ################################");
+						//for (String mail : this.listaMails) {
+							//System.out.println(mail);
+						//}
+						//System.out.println("###################################################################################");
+						//System.out.println();
+						System.out.println("################################ Links encontrados ################################");
+						for (String links : this.lista_URLs) {
+							System.out.println(links);
+						}
+						System.out.println("###################################################################################");
+						/****************/
+						
+						if (!this.lista_URLs.isEmpty()) {
+							this.profundidad--; 				
+							while(!this.lista_URLs.isEmpty()){
+								DFS();
+							}
+						} else {
+							// si tengo hermanos pueden llegar a estar en la lista
+							// es pozo???
+						}
+						this.camino.remove(v); //ver si el casteo es necesario
+					} else {
+						if (this.camino.contains(v)) {
+							this.ciclos++; //ac� lo detecto y cuento pero no se si es necesario hacerlo, capaz no sea necesario camino
+						}
+					}
 				}
+			} catch (MalformedURLException e) {
+				System.out.println("############################# --------> " + e.getMessage());
+				e.printStackTrace();
+			} catch (UnknownHostException e) {
+				System.out.println("############################# --------> " + e.getMessage());
+				e.printStackTrace();
+			} catch (IOException e) {
+				System.out.println("############################# --------> " + e.getMessage());
+				e.printStackTrace();
 			}
-			br.close();
-			sc.close();
-		} catch (MalformedURLException e) {
-			System.out.println("############################# --------> " + e.getMessage());
-			e.printStackTrace();
-		} catch (UnknownHostException e) {
-			System.out.println("############################# --------> " + e.getMessage());
-			e.printStackTrace();
-		} catch (IOException e) {
-			System.out.println("############################# --------> " + e.getMessage());
-			e.printStackTrace();
-		}
-		System.out.println("################################ Mails encontrados ################################");
-		for (String mail : this.listaMails) {
-			System.out.println(mail);
-		}
-		System.out.println("###################################################################################");
-		System.out.println();
-		System.out.println("################################ Links encontrados ################################");
-		for (String links : this.lista_URLs) {
-			System.out.println(links);
-		}
-		System.out.println("###################################################################################");
+		//}
 	}
-//		if (profundidad == 0) {
-//			/* es pozo, por lo que vimos en el monitoreo creo que este es el caso de un pozo.
-//			 "Si par�s por profundidad y tenes links de salida son " */
-//		} else {
-//			if (!visitados.contains(v)) { //ver si el casteo es necesario
-//				visitados.add(v);
-//				camino.add(v);
-//				/* Preprocesamiento(v,lista_URLs,mails) 
-//				   en lista_URLs agrego las URLs hijas para seguir navegando, mails lo uso para imprimir en pantalla
-//				   Imprimir(mails) Ver pq no respeto lo de tiempo real y sino imprimir en la funci�n anterior*/
-//				if (!lista_URLs.isEmpty()) {
-//					this.profundidad--; 				
-//					/*DFS(lista_URLs, visitados, camino, profundidad);*/
-//				} else {
-//					/* si tengo hermanos pueden llegar a estar en la lista
-//					 es pozo??? */
-//				}
-//				camino.remove(v); //ver si el casteo es necesario
-//			} else {
-//				if (camino.contains(v)) {
-//					this.ciclos++; //ac� lo detecto y cuento pero no se si es necesario hacerlo, capaz no sea necesario camino
-//				}
-//			}
-//		}
 
 	public String getBaseURL() {
 		return baseURL;
