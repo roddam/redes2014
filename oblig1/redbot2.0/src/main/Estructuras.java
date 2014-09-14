@@ -211,8 +211,11 @@ public class Estructuras {
 			String html = br.readLine();
 			Pattern patURLs = Pattern
 					.compile("<a href=\"((http://|/)[^ ]*)(\" .*)*\">.*</a>");
+			//FIXME arreglar regex de mails
+			Pattern patMails = Pattern.compile("");
 			while (html != null) {
 				Matcher matchURLs = patURLs.matcher(html);
+				Matcher matchMails = patMails.matcher(html);
 				while (matchURLs.find()) {
 					String urlEncontrada = matchURLs.group(1);
 					Nodo n = new Nodo();
@@ -234,6 +237,10 @@ public class Estructuras {
 							nodo.getAdyacentes().add(n);
 						}
 					}
+				}
+				while (matchMails.find()) {
+					//FIXME arreglar regex mails
+					nodo.getMailsEncontrados().add(matchMails.group());
 				}
 				html = br.readLine();
 			}
