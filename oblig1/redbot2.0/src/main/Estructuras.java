@@ -18,6 +18,14 @@ import java.util.regex.Pattern;
 public class Estructuras {
 
 	private int cantVisitados;
+	private static final String HTML_A_TAG_PATTERN = "(?i)<a([^>]+)>(.+?)</a>";
+	private static final String HTML_A_HREF_TAG_PATTERN = 
+		"\\s*(?i)href\\s*=\\s*(\"([^\"]*\")|'[^']*'|([^'\">\\s]+))";
+	private static final String HTML_MAILTO_PATTERN = "mailto:([^?]+)";
+	
+	private Pattern patternTag, patternLink, patternMailTo;
+	private Matcher matcherTag, matcherLink, matcherMailTo;
+	
 	
 	/**
 	 * Instancia unica de la clase que maneja las estructuras
@@ -183,7 +191,7 @@ public class Estructuras {
 	}
 
 	public void procesarURL(Nodo nodo, int prof) {
-		System.out.println("################Profundidad: " + prof);
+//		System.out.println("################Profundidad: " + prof);
 		this.procesarNodo(nodo);
 		for (Nodo n : nodo.getAdyacentes()) {
 			if (!this.visitados.contains(n.toString())) {
@@ -209,45 +217,67 @@ public class Estructuras {
 			BufferedReader br = new BufferedReader(new InputStreamReader(
 					sc.getInputStream()));
 			String html = br.readLine();
-			Pattern patURLs = Pattern
-					.compile("<a href=\"((http://|/)[^ ]*)(\" .*)*\">.*</a>");
-			//FIXME arreglar regex de mails
-			Pattern patMails = Pattern.compile("");
+			
+			patternTag = Pattern.compile(HTML_A_TAG_PATTERN);
+			patternLink = Pattern.compile(HTML_A_HREF_TAG_PATTERN);
+			patternMailTo = Pattern.compile(HTML_MAILTO_PATTERN);
+			
 			while (html != null) {
-				Matcher matchURLs = patURLs.matcher(html);
-				Matcher matchMails = patMails.matcher(html);
-				while (matchURLs.find()) {
-					String urlEncontrada = matchURLs.group(1);
+				
+				matcherTag = patternTag.matcher(html);
+				
+				while (matcherTag.find()) {
+					
 					Nodo n = new Nodo();
 					n.setProf(nodo.getProf() + 1);
-					try {
-						URL url = new URL(urlEncontrada);
-						String protocol = url.getProtocol();
-//						System.out.println("PROTOCOLO :: " + protocol);
-						if (!protocol.equals("https")) {
-							n.setUrl(url);
-							nodo.getAdyacentes().add(n);
+					
+					String href = matcherTag.group(1); // href
+					String linkText = matcherTag.group(2); // link text
+		 
+					matcherLink = patternLink.matcher(href);
+		 
+					while (matcherLink.find()) {
+		 
+						String link = matcherLink.group(1); // link
+						link = replaceInvalidChar(link);
+						
+						matcherMailTo = patternMailTo.matcher(link);
+						if(matcherMailTo.find()){
+							String mailTo = matcherMailTo.group(1);
+							nodo.getMailsEncontrados().add(mailTo);
 						}
-					} catch (MalformedURLException exp) {
-//						System.out.println("Malformed URL: " + exp.getMessage());
-						if (exp.getMessage().contains("no protocol")) {
-							urlEncontrada = nodo.getUrl().getProtocol() + "://" + nodo.getUrl().getHost() + ":" + puerto + urlEncontrada;
-//							System.out.println("################URL encontrada sin protocolo: " + urlEncontrada);
-							n.setUrl(new URL(urlEncontrada));
-							nodo.getAdyacentes().add(n);
+					
+						
+						try {
+							
+							URL url = new URL(link);
+							String protocol = url.getProtocol();
+//							System.out.println("PROTOCOLO :: " + protocol);
+							if (!protocol.equals("https")) {
+								n.setUrl(url);
+								nodo.getAdyacentes().add(n);
+							}
+						} catch (MalformedURLException exp) {
+//							System.out.println("Malformed URL: " + exp.getMessage());
+							if (exp.getMessage().contains("no protocol")) {
+								link = nodo.getUrl().getProtocol() + "://" + nodo.getUrl().getHost() + ":" + puerto + link;
+								//System.out.println("################URL encontrada sin protocolo: " + link);
+								n.setUrl(new URL(link));
+								nodo.getAdyacentes().add(n);
+							}
 						}
+		 
 					}
+					
+				
 				}
-				while (matchMails.find()) {
-					//FIXME arreglar regex mails
-					nodo.getMailsEncontrados().add(matchMails.group());
-				}
+
 				html = br.readLine();
 			}
 			if (!this.visitados.contains(nodo.toString())) {
 				this.cantVisitados++;
-				System.out.println("################### CANTIDAD DE VISITADOS: " + this.cantVisitados + " #################");
-				System.out.println("################### URL agregada: " + nodo.getUrl().toString());
+				//System.out.println("################### CANTIDAD DE VISITADOS: " + this.cantVisitados + " #################");
+				//System.out.println("################### URL agregada: " + nodo.getUrl().toString());
 				this.visitados.add(nodo.toString());
 			}
 			br.close();
@@ -288,8 +318,8 @@ public class Estructuras {
 
 	public void imprimirMails(Nodo n) {
 		// FIXME evitar concurrencia
-		System.out.println("Mails encontrados en la URL: "
-				+ n.getUrl().getHost() + n.getUrl().getPath());
+//		System.out.println("Mails encontrados en la URL: "
+//				+ n.getUrl().getHost() + n.getUrl().getPath());
 		int i = 1;
 		for (String s : n.getMailsEncontrados()) {
 			System.out.println(i++ + " - " + s);
@@ -422,5 +452,12 @@ public class Estructuras {
 
 	public void setRaiz(Nodo raiz) {
 		this.raiz = raiz;
+	}
+	
+	private String replaceInvalidChar(String link){
+		link = link.replaceAll("'", "");
+		link = link.replaceAll("\"", "");
+		if(!link.startsWith("http") && !link.startsWith("https") && !link.startsWith("/")) link = "/"+link;
+		return link;
 	}
 }
