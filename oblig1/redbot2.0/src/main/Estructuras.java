@@ -31,8 +31,9 @@ public class Estructuras {
 	 * Instancia unica de la clase que maneja las estructuras
 	 */
 	private static Estructuras e = null;
-	public static int puertoDefecto = 80;
-	public static int profDefecto = 5;
+	public static final int puertoDefecto = 80;
+	public static final int profDefecto = 5;
+	
 	private static String mensajeErrorUsage = "Usage: redbot [-d] [-depth N]\n"
 			+ "[-persistent] [-pozos fileName] [-multilang fileName]\n"
 			+ "[-p threads] [-prx proxyURL] URL";
@@ -66,7 +67,7 @@ public class Estructuras {
 	private boolean persistent;
 	private boolean pozos;
 	private boolean multilang;
-	private boolean threads;
+	public static boolean threads=false;
 	private boolean prx;
 
 	/**
@@ -76,7 +77,7 @@ public class Estructuras {
 	private int profundidad;
 	private String pozosFilename;
 	private String multilangFilename;
-	private int cantThreads;
+	public static int cantThreads=0;
 	private String proxyURL;
 
 	private Estructuras() {
@@ -90,12 +91,10 @@ public class Estructuras {
 		this.persistent = false;
 		this.pozos = false;
 		this.multilang = false;
-		this.threads = false;
 		this.prx = false;
 		this.profundidad = Estructuras.profDefecto;
 		this.pozosFilename = null;
 		this.multilangFilename = null;
-		this.cantThreads = -1;
 		this.proxyURL = null;
 	}
 
@@ -158,10 +157,11 @@ public class Estructuras {
 					}
 					break;
 				case "-p":
-					if (!this.threads) {
+					if (!threads) {
 						i++;
-						this.threads = true;
-						this.cantThreads = Integer.parseInt((String) args[i]);
+						threads = true;
+						cantThreads = Integer.parseInt((String) args[i]);
+						
 					} else {
 						throw new Exception("Parametro -p repetido.\n"
 								+ Estructuras.mensajeErrorUsage);
@@ -192,7 +192,11 @@ public class Estructuras {
 
 	public void procesarURL(Nodo nodo, int prof) {
 //		System.out.println("################Profundidad: " + prof);
-		this.procesarNodo(nodo);
+		if(Estructuras.cantThreads > 0){
+			
+			this.procesarNodo(nodo);
+		}
+		
 		for (Nodo n : nodo.getAdyacentes()) {
 			if (!this.visitados.contains(n.toString())) {
 				if (prof <= this.profundidad) {
@@ -232,7 +236,7 @@ public class Estructuras {
 					n.setProf(nodo.getProf() + 1);
 					
 					String href = matcherTag.group(1); // href
-					String linkText = matcherTag.group(2); // link text
+//					String linkText = matcherTag.group(2); // link text
 		 
 					matcherLink = patternLink.matcher(href);
 		 
@@ -366,14 +370,7 @@ public class Estructuras {
 		this.multilang = multilang;
 	}
 
-	public boolean isThreads() {
-		return threads;
-	}
-
-	public void setThreads(boolean threads) {
-		this.threads = threads;
-	}
-
+	
 	public boolean isPrx() {
 		return prx;
 	}
@@ -408,10 +405,6 @@ public class Estructuras {
 
 	public int getCantThreads() {
 		return cantThreads;
-	}
-
-	public void setCantThreads(int cantThreads) {
-		this.cantThreads = cantThreads;
 	}
 
 	public String getProxyURL() {
