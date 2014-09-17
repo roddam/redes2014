@@ -1,10 +1,8 @@
 package main;
 
 import java.net.URL;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
 
 public class Nodo {
 
@@ -68,24 +66,18 @@ public class Nodo {
 		return this.getUrl().getProtocol() + "://" + this.getUrl().getHost()
 				+ ":" + this.getUrl().getPort() + this.getUrl().getPath();
 	}
-//	public static void main(String[] args) {
-//		List<String> listaStrings = new LinkedList<String>();
-//		Set<String> setStrings = new HashSet<String>();
-//		
-//		for (int i = 0 ; i < 6; i++) {
-//			for (int j = 0; j < 6; j++) {
-//				String s = "Un String con un indice: " + i;
-//				listaStrings.add(s);
-//				setStrings.add(s);
-//			}
-//		}
-//		System.out.println("Cantidad de elementos en la lista: " + listaStrings.size());
-//		for (String s : listaStrings) {
-//			System.err.println(s);
-//		}
-//		System.out.println("Cantidad de elementos en el set: " + setStrings.size());
-//		for (String s : setStrings) {
-//			System.out.println(s);
-//		}
-//	}
+
+	/**
+	 * Verifica si dos nodos son iguales, comparando las url asociadas.
+	 */
+	public boolean equals(Nodo n) {
+		return this.toString().equals(n.toString());
+	}
+
+	// /**
+	// * main para pruebas
+	// * @param args
+	// */
+	// public static void main(String[] args) {
+	// }
 }

@@ -9,7 +9,6 @@ import java.net.MalformedURLException;
 import java.net.Socket;
 import java.net.URL;
 import java.net.UnknownHostException;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -18,33 +17,43 @@ import java.util.regex.Pattern;
 
 public class Estructuras {
 
+	/**
+	 * Variables para el parseo del html
+	 */
 	private static final String HTML_A_TAG_PATTERN = "(?i)<a([^>]+)>(.+?)</a>";
 	private static final String HTML_A_HREF_TAG_PATTERN = "\\s*(?i)href\\s*=\\s*(\"([^\"]*\")|'[^']*'|([^'\">\\s]+))";
 	private static final String HTML_MAILTO_PATTERN = "mailto:([^?]+)";
 
-	private Pattern patternTag, patternLink, patternMailTo;
-	private Matcher matcherTag, matcherLink, matcherMailTo;
+	private Pattern patternTag;
+	private Pattern patternLink;
+	private Pattern patternMailTo;
+	private Matcher matcherTag;
+	private Matcher matcherLink;
+	private Matcher matcherMailTo;
 
 	/**
 	 * Instancia unica de la clase que maneja las estructuras
 	 */
 	private static Estructuras e = null;
+
+	/**
+	 * Vaiables por defecto
+	 * 
+	 */
 	public static final int puertoDefecto = 80;
 	public static final int profDefecto = 5;
 
+	/**
+	 * mensaje de error en caso que se ingrese algún switch incorrectamente.
+	 */
 	private static String mensajeErrorUsage = "Usage: redbot [-d] [-depth N]\n"
 			+ "[-persistent] [-pozos fileName] [-multilang fileName]\n"
 			+ "[-p threads] [-prx proxyURL] URL";
 
 	/**
-	 * Lista que contiene las URLs a procesar
+	 * Nodo que contiene la URL a partir de la cual se realiza el procesamiento.
 	 */
 	private Nodo raiz;
-
-	/**
-	 * HashMap para saber en que nivel esta una URL
-	 */
-	private HashMap<String, Integer> nivelPorURL;
 
 	/**
 	 * Lista con las URLs que ya fueron procesadas.
@@ -52,23 +61,21 @@ public class Estructuras {
 	private List<String> visitados;
 
 	/**
-	 * Lista de mails que se van encontrando mientras se realiza el
-	 * procesamiento
+	 * Set con las URLs que no tiene links de salida.
 	 */
-	private List<String> listaMails;
-	
 	private Set<String> listaURLsPozos;
 
 	/**
-	 * Variables de control. Habilitada = true Deshabilitada = false
+	 * Variables de control. Habilitada = true Deshabilitada = false Utilizadas
+	 * durante el procesamiento.
 	 */
 	private boolean debug;
 	private boolean depth;
 	private boolean persistent;
 	private boolean pozos;
 	private boolean multilang;
-	public static boolean threads = false;
 	private boolean prx;
+	public static boolean threads = false;
 
 	/**
 	 * Variables auxiliares utilizadas para el procesamiento a realizar
@@ -77,14 +84,12 @@ public class Estructuras {
 	private int profundidad;
 	private String pozosFilename;
 	private String multilangFilename;
-	public static int cantThreads = 0;
 	private String proxyURL;
+	public static int cantThreads = 0;
 
 	private Estructuras() {
 		this.raiz = null;
-		this.nivelPorURL = new HashMap<String, Integer>();
 		this.visitados = new LinkedList<String>();
-		this.listaMails = new LinkedList<String>();
 		this.debug = false;
 		this.depth = false;
 		this.persistent = false;
@@ -104,7 +109,8 @@ public class Estructuras {
 		return Estructuras.e;
 	}
 
-	public void inicializarEstructuras(String[] args) throws Exception {
+	public void inicializarEstructuras(String[] args)
+			throws MalformedURLException, Exception {
 		if (args.length > 0) {
 			for (int i = 0; i < args.length - 2; i++) {
 				String entrada = (String) args[i];
@@ -187,18 +193,22 @@ public class Estructuras {
 			throw new Exception(Estructuras.mensajeErrorUsage);
 		}
 	}
-	
+
 	public void procesarURL(Nodo nodo, int prof) {
 		this.procesarNodo(nodo);
 		for (Nodo n : nodo.getAdyacentes()) {
 			if (!this.visitados.contains(n.toString())) {
 				if (prof <= this.profundidad) {
-					// FIXME si hay hilos disponibles le doy el nodo a procesar
-					// a
-					// uno de esos, si no lo agarro yo.
 					if (Estructuras.cantThreads > 0) {
-						new Thread().start();
+						/*
+						 * Si tengo hilos disponibles, creo uno y le paso el
+						 * nodo que tiene que procesar junto con la profundidad
+						 * en la que ese nodo estaria.
+						 */
+						Estructuras.cantThreads--;
+						new ThreadRedbot(n, prof + 1).start();
 						this.procesarNodo(nodo);
+						Estructuras.cantThreads++;
 					}
 					this.procesarURL(n, prof + 1);
 				}
@@ -208,48 +218,59 @@ public class Estructuras {
 
 	public void procesarNodo(Nodo nodo) {
 		try {
+			/*
+			 * Obtengo la direccion IP y el puerto del host contra el que quiero
+			 * abrir el socket
+			 */
 			InetAddress ia = InetAddress.getByName(nodo.getUrl().getHost());
 			int puerto = nodo.getUrl().getPort() == -1 ? Estructuras.puertoDefecto
 					: nodo.getUrl().getPort();
+
+			/*
+			 * Abro el socket y creo un flujo de datos para mandarle el mensaje
+			 * GET
+			 */
 			Socket sc = new Socket(ia, puerto);
 			PrintWriter pw = new PrintWriter(sc.getOutputStream());
-//			System.out.println(this.obtenerMensajeGET(nodo.getUrl()));
 			pw.println(this.obtenerMensajeGET(nodo.getUrl()));
 			pw.flush();
 
-			BufferedReader br = new BufferedReader(new InputStreamReader(sc.getInputStream()));
+			/*
+			 * Abro un flujo de datos por el cual voy a recibir el mensaje de
+			 * respuesta enviado
+			 */
+			BufferedReader br = new BufferedReader(new InputStreamReader(
+					sc.getInputStream()));
 			String html = br.readLine();
-			System.out.println("######################################");
-			if (System.getProperty("line.separator").equals("\r\n")) {
-				System.out.println("tu vieja");
-			}
-			System.out.println("######################################");
 
+			/*
+			 * Primero leo el cabezal para verificar que esta todo bien y
+			 * analizar de que manera leer el mensaje de respuesta que se esta
+			 * enviando
+			 */
 			String cabezal = "";
 			while (!html.isEmpty()) {
 				cabezal = cabezal + "\n" + html;
 				html = br.readLine();
 			}
-			
 			this.procesarCabezalResponse(cabezal);
-			
-			
-			patternTag = Pattern.compile(HTML_A_TAG_PATTERN);
-			patternLink = Pattern.compile(HTML_A_HREF_TAG_PATTERN);
-			patternMailTo = Pattern.compile(HTML_MAILTO_PATTERN);
+
+			this.patternTag = Pattern.compile(HTML_A_TAG_PATTERN);
+			this.patternLink = Pattern.compile(HTML_A_HREF_TAG_PATTERN);
+			this.patternMailTo = Pattern.compile(HTML_MAILTO_PATTERN);
 			while (html != null) {
-				matcherTag = patternTag.matcher(html);
-				while (matcherTag.find()) {
+				this.matcherTag = this.patternTag.matcher(html);
+				while (this.matcherTag.find()) {
 					Nodo n = new Nodo();
 					n.setProf(nodo.getProf() + 1);
-					String href = matcherTag.group(1); // href
-					matcherLink = patternLink.matcher(href);
-					while (matcherLink.find()) {
-						String link = matcherLink.group(1); // link
+					String href = this.matcherTag.group(1); // href
+					this.matcherLink = this.patternLink.matcher(href);
+					while (this.matcherLink.find()) {
+						String link = this.matcherLink.group(1); // link
 						link = replaceInvalidChar(link);
-						matcherMailTo = patternMailTo.matcher(link);
-						if (matcherMailTo.find()) {
-							String mailTo = matcherMailTo.group(1);
+						this.matcherMailTo = this.patternMailTo.matcher(link);
+						if (this.matcherMailTo.find()) {
+							String mailTo = this.matcherMailTo.group(1);
 							nodo.getMailsEncontrados().add(mailTo);
 						}
 						try {
@@ -261,7 +282,9 @@ public class Estructuras {
 							}
 						} catch (MalformedURLException exp) {
 							if (exp.getMessage().contains("no protocol")) {
-								link = nodo.getUrl().getProtocol() + "://"+ nodo.getUrl().getHost() + ":"+ puerto + link;
+								link = nodo.getUrl().getProtocol() + "://"
+										+ nodo.getUrl().getHost() + ":"
+										+ puerto + link;
 								n.setUrl(new URL(link));
 								nodo.getAdyacentes().add(n);
 							}
@@ -270,11 +293,22 @@ public class Estructuras {
 				}
 				html = br.readLine();
 			}
+			/*
+			 * luego de procesar el html, agrego la URL procesada a la lista de
+			 * URLs visitadas
+			 */
 			if (!this.visitados.contains(nodo.toString())) {
 				this.visitados.add(nodo.toString());
 			}
+
+			/*
+			 * cierro el socket y el flujo de datos por el cual rescibia la
+			 * respuesta
+			 */
 			br.close();
 			sc.close();
+
+			/* Imprimo los mails encontrados en el html */
 			this.imprimirMails(nodo);
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
@@ -282,7 +316,10 @@ public class Estructuras {
 			e.printStackTrace();
 		}
 	}
-	
+
+	/**
+	 * Funcion auxiliar para procesar el cabezal del mensaje obtenido
+	 */
 	public void procesarCabezalResponse(String cabezal) {
 		System.out.println(cabezal);
 	}
@@ -301,13 +338,28 @@ public class Estructuras {
 
 		return result;
 	}
-
+	
+	/**
+	 * Funcion Auxiliar utilizada para imprimir los mails encontrados en una URL
+	 */
 	public void imprimirMails(Nodo n) {
 		// FIXME evitar concurrencia
 		int i = 1;
 		for (String s : n.getMailsEncontrados()) {
 			System.out.println(i++ + " - " + s);
 		}
+	}
+
+	/**
+	 * 
+	 */
+	private String replaceInvalidChar(String link) {
+		link = link.replaceAll("'", "");
+		link = link.replaceAll("\"", "");
+		if (!link.startsWith("http") && !link.startsWith("https")
+				&& !link.startsWith("/"))
+			link = "/" + link;
+		return link;
 	}
 
 	public boolean isDebug() {
@@ -402,22 +454,6 @@ public class Estructuras {
 		this.visitados = visitados;
 	}
 
-	public List<String> getListaMails() {
-		return listaMails;
-	}
-
-	public void setListaMails(List<String> listaMails) {
-		this.listaMails = listaMails;
-	}
-
-	public HashMap<String, Integer> getNivelPorURL() {
-		return nivelPorURL;
-	}
-
-	public void setNivelPorURL(HashMap<String, Integer> nivelPorURL) {
-		this.nivelPorURL = nivelPorURL;
-	}
-
 	public Nodo getRaiz() {
 		return raiz;
 	}
@@ -425,7 +461,7 @@ public class Estructuras {
 	public void setRaiz(Nodo raiz) {
 		this.raiz = raiz;
 	}
-	
+
 	public Set<String> getListaURLsPozos() {
 		return listaURLsPozos;
 	}
@@ -433,13 +469,4 @@ public class Estructuras {
 	public void setListaURLsPozos(Set<String> listaURLsPozos) {
 		this.listaURLsPozos = listaURLsPozos;
 	}
-	
-	private String replaceInvalidChar(String link) {
-		link = link.replaceAll("'", "");
-		link = link.replaceAll("\"", "");
-		if (!link.startsWith("http") && !link.startsWith("https")
-				&& !link.startsWith("/"))
-			link = "/" + link;
-		return link;
-	}	
 }
