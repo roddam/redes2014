@@ -1,9 +1,10 @@
 package main;
 
-public class ThreadRedbot extends Thread {
+public class ThreadRedbot implements Runnable {
 
-	 public void run() {
-	        System.out.println("Hello from a thread!");
-	 }
-
+	@Override
+	public void run() {
+		
+	}
+	
 }

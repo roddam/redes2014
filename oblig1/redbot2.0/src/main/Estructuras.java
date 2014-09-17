@@ -12,28 +12,26 @@ import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Estructuras {
 
-	private int cantVisitados;
 	private static final String HTML_A_TAG_PATTERN = "(?i)<a([^>]+)>(.+?)</a>";
-	private static final String HTML_A_HREF_TAG_PATTERN = 
-		"\\s*(?i)href\\s*=\\s*(\"([^\"]*\")|'[^']*'|([^'\">\\s]+))";
+	private static final String HTML_A_HREF_TAG_PATTERN = "\\s*(?i)href\\s*=\\s*(\"([^\"]*\")|'[^']*'|([^'\">\\s]+))";
 	private static final String HTML_MAILTO_PATTERN = "mailto:([^?]+)";
-	
+
 	private Pattern patternTag, patternLink, patternMailTo;
 	private Matcher matcherTag, matcherLink, matcherMailTo;
-	
-	
+
 	/**
 	 * Instancia unica de la clase que maneja las estructuras
 	 */
 	private static Estructuras e = null;
 	public static final int puertoDefecto = 80;
 	public static final int profDefecto = 5;
-	
+
 	private static String mensajeErrorUsage = "Usage: redbot [-d] [-depth N]\n"
 			+ "[-persistent] [-pozos fileName] [-multilang fileName]\n"
 			+ "[-p threads] [-prx proxyURL] URL";
@@ -58,6 +56,8 @@ public class Estructuras {
 	 * procesamiento
 	 */
 	private List<String> listaMails;
+	
+	private Set<String> listaURLsPozos;
 
 	/**
 	 * Variables de control. Habilitada = true Deshabilitada = false
@@ -67,7 +67,7 @@ public class Estructuras {
 	private boolean persistent;
 	private boolean pozos;
 	private boolean multilang;
-	public static boolean threads=false;
+	public static boolean threads = false;
 	private boolean prx;
 
 	/**
@@ -77,11 +77,10 @@ public class Estructuras {
 	private int profundidad;
 	private String pozosFilename;
 	private String multilangFilename;
-	public static int cantThreads=0;
+	public static int cantThreads = 0;
 	private String proxyURL;
 
 	private Estructuras() {
-		this.cantVisitados = 0;
 		this.raiz = null;
 		this.nivelPorURL = new HashMap<String, Integer>();
 		this.visitados = new LinkedList<String>();
@@ -161,7 +160,6 @@ public class Estructuras {
 						i++;
 						threads = true;
 						cantThreads = Integer.parseInt((String) args[i]);
-						
 					} else {
 						throw new Exception("Parametro -p repetido.\n"
 								+ Estructuras.mensajeErrorUsage);
@@ -189,19 +187,19 @@ public class Estructuras {
 			throw new Exception(Estructuras.mensajeErrorUsage);
 		}
 	}
-
+	
 	public void procesarURL(Nodo nodo, int prof) {
-//		System.out.println("################Profundidad: " + prof);
-		if(Estructuras.cantThreads > 0){
-			
-			this.procesarNodo(nodo);
-		}
-		
+		this.procesarNodo(nodo);
 		for (Nodo n : nodo.getAdyacentes()) {
 			if (!this.visitados.contains(n.toString())) {
 				if (prof <= this.profundidad) {
-					// FIXME si hay hilos disponibles le doy el nodo a procesar a
+					// FIXME si hay hilos disponibles le doy el nodo a procesar
+					// a
 					// uno de esos, si no lo agarro yo.
+					if (Estructuras.cantThreads > 0) {
+						new Thread().start();
+						this.procesarNodo(nodo);
+					}
 					this.procesarURL(n, prof + 1);
 				}
 			}
@@ -211,77 +209,68 @@ public class Estructuras {
 	public void procesarNodo(Nodo nodo) {
 		try {
 			InetAddress ia = InetAddress.getByName(nodo.getUrl().getHost());
-			int puerto = nodo.getUrl().getPort() == -1 ? Estructuras.puertoDefecto : nodo.getUrl().getPort();
+			int puerto = nodo.getUrl().getPort() == -1 ? Estructuras.puertoDefecto
+					: nodo.getUrl().getPort();
 			Socket sc = new Socket(ia, puerto);
 			PrintWriter pw = new PrintWriter(sc.getOutputStream());
-			System.out.println(this.obtenerMensajeGET(nodo.getUrl()));
+//			System.out.println(this.obtenerMensajeGET(nodo.getUrl()));
 			pw.println(this.obtenerMensajeGET(nodo.getUrl()));
 			pw.flush();
 
-			BufferedReader br = new BufferedReader(new InputStreamReader(
-					sc.getInputStream()));
+			BufferedReader br = new BufferedReader(new InputStreamReader(sc.getInputStream()));
 			String html = br.readLine();
+			System.out.println("######################################");
+			if (System.getProperty("line.separator").equals("\r\n")) {
+				System.out.println("tu vieja");
+			}
+			System.out.println("######################################");
+
+			String cabezal = "";
+			while (!html.isEmpty()) {
+				cabezal = cabezal + "\n" + html;
+				html = br.readLine();
+			}
+			
+			this.procesarCabezalResponse(cabezal);
+			
 			
 			patternTag = Pattern.compile(HTML_A_TAG_PATTERN);
 			patternLink = Pattern.compile(HTML_A_HREF_TAG_PATTERN);
 			patternMailTo = Pattern.compile(HTML_MAILTO_PATTERN);
-			
 			while (html != null) {
-				
 				matcherTag = patternTag.matcher(html);
-				
 				while (matcherTag.find()) {
-					
 					Nodo n = new Nodo();
 					n.setProf(nodo.getProf() + 1);
-					
 					String href = matcherTag.group(1); // href
-//					String linkText = matcherTag.group(2); // link text
-		 
 					matcherLink = patternLink.matcher(href);
-		 
 					while (matcherLink.find()) {
-		 
 						String link = matcherLink.group(1); // link
 						link = replaceInvalidChar(link);
-						
 						matcherMailTo = patternMailTo.matcher(link);
-						if(matcherMailTo.find()){
+						if (matcherMailTo.find()) {
 							String mailTo = matcherMailTo.group(1);
 							nodo.getMailsEncontrados().add(mailTo);
 						}
-					
-						
 						try {
-							
 							URL url = new URL(link);
 							String protocol = url.getProtocol();
-//							System.out.println("PROTOCOLO :: " + protocol);
 							if (!protocol.equals("https")) {
 								n.setUrl(url);
 								nodo.getAdyacentes().add(n);
 							}
 						} catch (MalformedURLException exp) {
-//							System.out.println("Malformed URL: " + exp.getMessage());
 							if (exp.getMessage().contains("no protocol")) {
-								link = nodo.getUrl().getProtocol() + "://" + nodo.getUrl().getHost() + ":" + puerto + link;
-								//System.out.println("################URL encontrada sin protocolo: " + link);
+								link = nodo.getUrl().getProtocol() + "://"+ nodo.getUrl().getHost() + ":"+ puerto + link;
 								n.setUrl(new URL(link));
 								nodo.getAdyacentes().add(n);
 							}
 						}
-		 
 					}
-					
-				
 				}
-
 				html = br.readLine();
 			}
 			if (!this.visitados.contains(nodo.toString())) {
-				this.cantVisitados++;
-				//System.out.println("################### CANTIDAD DE VISITADOS: " + this.cantVisitados + " #################");
-				//System.out.println("################### URL agregada: " + nodo.getUrl().toString());
 				this.visitados.add(nodo.toString());
 			}
 			br.close();
@@ -294,16 +283,9 @@ public class Estructuras {
 		}
 	}
 	
-//	public boolean urlYaVisitada(Nodo nodo) {
-//		boolean result = false;
-//		for (Nodo n : this.visitados) {
-//			if (n.getUrl().equals(nodo.getUrl())) {
-//				result = true;
-//				break;
-//			}
-//		}
-//		return result;
-//	}
+	public void procesarCabezalResponse(String cabezal) {
+		System.out.println(cabezal);
+	}
 
 	public String obtenerMensajeGET(URL url) {
 		String result = "GET ";
@@ -322,8 +304,6 @@ public class Estructuras {
 
 	public void imprimirMails(Nodo n) {
 		// FIXME evitar concurrencia
-//		System.out.println("Mails encontrados en la URL: "
-//				+ n.getUrl().getHost() + n.getUrl().getPath());
 		int i = 1;
 		for (String s : n.getMailsEncontrados()) {
 			System.out.println(i++ + " - " + s);
@@ -370,7 +350,6 @@ public class Estructuras {
 		this.multilang = multilang;
 	}
 
-	
 	public boolean isPrx() {
 		return prx;
 	}
@@ -447,10 +426,20 @@ public class Estructuras {
 		this.raiz = raiz;
 	}
 	
-	private String replaceInvalidChar(String link){
+	public Set<String> getListaURLsPozos() {
+		return listaURLsPozos;
+	}
+
+	public void setListaURLsPozos(Set<String> listaURLsPozos) {
+		this.listaURLsPozos = listaURLsPozos;
+	}
+	
+	private String replaceInvalidChar(String link) {
 		link = link.replaceAll("'", "");
 		link = link.replaceAll("\"", "");
-		if(!link.startsWith("http") && !link.startsWith("https") && !link.startsWith("/")) link = "/"+link;
+		if (!link.startsWith("http") && !link.startsWith("https")
+				&& !link.startsWith("/"))
+			link = "/" + link;
 		return link;
-	}
+	}	
 }
