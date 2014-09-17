@@ -9,6 +9,7 @@ public class Redbot {
 			struct.procesarURL(struct.getRaiz(), 0);
 			System.out.println("TERMINE!!!!!!!!!!!!!!");
 			
+			
 		} catch (Exception e) {
 			System.out.println(e.getMessage());
 		}
