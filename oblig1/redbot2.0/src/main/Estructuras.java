@@ -9,6 +9,7 @@ import java.net.MalformedURLException;
 import java.net.Socket;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -42,6 +43,7 @@ public class Estructuras {
 	 */
 	public static final int puertoDefecto = 80;
 	public static final int profDefecto = 5;
+	public static ThreadRedbot[] arrayThreads;
 
 	/**
 	 * mensaje de error en caso que se ingrese algún switch incorrectamente.
@@ -86,7 +88,7 @@ public class Estructuras {
 	private String multilangFilename;
 	private String proxyURL;
 	public static int cantThreads = 0;
-
+	
 	private Estructuras() {
 		this.raiz = null;
 		this.visitados = new LinkedList<String>();
@@ -102,6 +104,7 @@ public class Estructuras {
 		this.proxyURL = null;
 	}
 
+	
 	public static Estructuras getInstance() {
 		if (Estructuras.e == null) {
 			Estructuras.e = new Estructuras();
@@ -166,6 +169,10 @@ public class Estructuras {
 						i++;
 						threads = true;
 						cantThreads = Integer.parseInt((String) args[i]);
+						arrayThreads = new ThreadRedbot[cantThreads-1];
+						for(int j= 0;j<cantThreads;j++){
+							arrayThreads[j] = new ThreadRedbot();
+						}
 					} else {
 						throw new Exception("Parametro -p repetido.\n"
 								+ Estructuras.mensajeErrorUsage);
@@ -194,8 +201,8 @@ public class Estructuras {
 		}
 	}
 
-	public void procesarURL(Nodo nodo, int prof) {
-		this.procesarNodo(nodo);
+	public void procesarURL(Nodo nodo, int prof, boolean soyThread) {
+		this.procesarNodo(nodo,soyThread);
 		for (Nodo n : nodo.getAdyacentes()) {
 			if (!this.visitados.contains(n.toString())) {
 				if (prof <= this.profundidad) {
@@ -205,23 +212,28 @@ public class Estructuras {
 						 * nodo que tiene que procesar junto con la profundidad
 						 * en la que ese nodo estaria.
 						 */
+						System.out.println("SOY UN HILO");
+						System.out.println(Estructuras.cantThreads);
+						int pos = Estructuras.cantThreads -1;
+						Estructuras.arrayThreads[pos].addNodo(n, prof+1);
+						Estructuras.arrayThreads[pos].start();
 						Estructuras.cantThreads--;
-						new ThreadRedbot(n, prof + 1).start();
-						this.procesarNodo(nodo);
-						Estructuras.cantThreads++;
+						//new ThreadRedbot(n, prof + 1).start();				
+					}else{						
+						this.procesarURL(n, prof + 1,false);
 					}
-					this.procesarURL(n, prof + 1);
 				}
 			}
 		}
 	}
 
-	public void procesarNodo(Nodo nodo) {
+	public void procesarNodo(Nodo nodo, boolean soyThread) {
 		try {
 			/*
 			 * Obtengo la direccion IP y el puerto del host contra el que quiero
 			 * abrir el socket
 			 */
+			System.out.println(nodo.getUrl().toString());
 			InetAddress ia = InetAddress.getByName(nodo.getUrl().getHost());
 			int puerto = nodo.getUrl().getPort() == -1 ? Estructuras.puertoDefecto
 					: nodo.getUrl().getPort();
@@ -249,49 +261,96 @@ public class Estructuras {
 			 * enviando
 			 */
 			String cabezal = "";
+			Hashtable< String,String> hashCabezal = new Hashtable<String, String>();
+			
 			while (!html.isEmpty()) {
+				if(html.contains("HTTP/")){
+					String[] values = html.split(" ");
+					hashCabezal.put("CODE_ERROR",values[1].trim());
+					hashCabezal.put("CODE_MSG",values[2].trim());
+						
+				
+				}else if(html.startsWith("Content-Type")){
+					String[] values = html.split(":");
+					hashCabezal.put(values[0].trim(), values[1].trim());
+					
+				}else if(html.startsWith("Content-Language")){
+					String[] values = html.split(":");
+					hashCabezal.put(values[0].trim(), values[1].trim());
+					
+				}
+				else if(html.startsWith("ETag")){
+					String[] values = html.split(":");
+					hashCabezal.put(values[0].trim(), values[1].trim().replace("\"", ""));
+					
+				}
+				
 				cabezal = cabezal + "\n" + html;
 				html = br.readLine();
 			}
+			
+			if(soyThread){
+				System.out.println(" SOY UN THREADDDD !! "+nodo.getUrl());
+			}
+			
 			this.procesarCabezalResponse(cabezal);
-
-			this.patternTag = Pattern.compile(HTML_A_TAG_PATTERN);
-			this.patternLink = Pattern.compile(HTML_A_HREF_TAG_PATTERN);
-			this.patternMailTo = Pattern.compile(HTML_MAILTO_PATTERN);
-			while (html != null) {
-				this.matcherTag = this.patternTag.matcher(html);
-				while (this.matcherTag.find()) {
-					Nodo n = new Nodo();
-					n.setProf(nodo.getProf() + 1);
-					String href = this.matcherTag.group(1); // href
-					this.matcherLink = this.patternLink.matcher(href);
-					while (this.matcherLink.find()) {
-						String link = this.matcherLink.group(1); // link
-						link = replaceInvalidChar(link);
-						this.matcherMailTo = this.patternMailTo.matcher(link);
-						if (this.matcherMailTo.find()) {
-							String mailTo = this.matcherMailTo.group(1);
-							nodo.getMailsEncontrados().add(mailTo);
-						}
-						try {
-							URL url = new URL(link);
-							String protocol = url.getProtocol();
-							if (!protocol.equals("https")) {
-								n.setUrl(url);
-								nodo.getAdyacentes().add(n);
-							}
-						} catch (MalformedURLException exp) {
-							if (exp.getMessage().contains("no protocol")) {
-								link = nodo.getUrl().getProtocol() + "://"
-										+ nodo.getUrl().getHost() + ":"
-										+ puerto + link;
-								n.setUrl(new URL(link));
-								nodo.getAdyacentes().add(n);
+			if(hashCabezal.get("CODE_ERROR").equals("200") && hashCabezal.get("Content-Type").contains("text/html")){
+				html = br.readLine();
+				
+				this.patternTag = Pattern.compile(HTML_A_TAG_PATTERN);
+				this.patternLink = Pattern.compile(HTML_A_HREF_TAG_PATTERN);
+				this.patternMailTo = Pattern.compile(HTML_MAILTO_PATTERN);
+				while (html != null) {
+					this.matcherTag = this.patternTag.matcher(html);
+					while (this.matcherTag.find()) {
+						Nodo n = new Nodo();
+						n.setProf(nodo.getProf() + 1);
+						String href = this.matcherTag.group(1); // href
+						if(href == null) System.out.println("HREF NULLL ");
+						this.matcherLink = this.patternLink.matcher(href);
+						while (this.matcherLink.find()) {
+							String link = this.matcherLink.group(1); // link
+							
+							link = replaceInvalidChar(link);
+							this.matcherMailTo = this.patternMailTo.matcher(link);
+							if (this.matcherMailTo.find()) {
+								String mailTo = this.matcherMailTo.group(1);
+								nodo.getMailsEncontrados().add(mailTo);
+							}else {
+								try {
+									if (!link.startsWith("http") && !link.startsWith("https")
+											&&!link.startsWith("#")){
+										if( !link.startsWith("/")){
+											link = nodo.getUrl().getProtocol() + "://"
+											+ nodo.getUrl().getHost() + ":"
+											+ puerto + "/"+link;
+										} else {
+											link = nodo.getUrl().getProtocol() + "://"
+													+ nodo.getUrl().getHost() + ":"
+													+ puerto +link;
+										}
+										
+										
+									}
+									
+									URL url = new URL(link);
+									String protocol = url.getProtocol();
+									if (!protocol.equals("https")) {
+										n.setUrl(url);
+										nodo.getAdyacentes().add(n);
+									}
+								} catch (MalformedURLException exp) {
+									//System.out.println(exp.getMessage());
+								}
 							}
 						}
 					}
+					html = br.readLine();
 				}
-				html = br.readLine();
+			}else{
+				
+				System.out.println(hashCabezal.get("CODE_ERROR")+" ::: "+hashCabezal.get("CODE_MSG"));
+				
 			}
 			/*
 			 * luego de procesar el html, agrego la URL procesada a la lista de
@@ -300,7 +359,7 @@ public class Estructuras {
 			if (!this.visitados.contains(nodo.toString())) {
 				this.visitados.add(nodo.toString());
 			}
-
+			
 			/*
 			 * cierro el socket y el flujo de datos por el cual rescibia la
 			 * respuesta
@@ -356,9 +415,7 @@ public class Estructuras {
 	private String replaceInvalidChar(String link) {
 		link = link.replaceAll("'", "");
 		link = link.replaceAll("\"", "");
-		if (!link.startsWith("http") && !link.startsWith("https")
-				&& !link.startsWith("/"))
-			link = "/" + link;
+		
 		return link;
 	}
 

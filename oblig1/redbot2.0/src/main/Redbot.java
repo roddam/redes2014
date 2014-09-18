@@ -8,7 +8,7 @@ public class Redbot {
 		try {
 			Estructuras struct = Estructuras.getInstance();
 			struct.inicializarEstructuras(args);	
-			struct.procesarURL(struct.getRaiz(), 0);
+			struct.procesarURL(struct.getRaiz(), 0,false);
 			System.out.println("TERMINE!!!!!!!!!!!!!!");
 		} catch (MalformedURLException e) {
 			System.out.println("La URL ingresada no es valida.\nPor favor, verifique su correctitud.");
