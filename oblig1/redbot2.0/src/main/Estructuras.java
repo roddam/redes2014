@@ -218,6 +218,7 @@ public class Estructuras {
 						Estructuras.arrayThreads[pos].addNodo(n, prof+1);
 						Estructuras.arrayThreads[pos].start();
 						Estructuras.cantThreads--;
+
 						//new ThreadRedbot(n, prof + 1).start();				
 					}else{						
 						this.procesarURL(n, prof + 1,false);

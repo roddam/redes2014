@@ -6,7 +6,6 @@ public class ThreadRedbot extends Thread {
 	private int prof;
 	
 	public ThreadRedbot(){
-
 	}
 
 	public void addNodo(Nodo nodo,int prof){
