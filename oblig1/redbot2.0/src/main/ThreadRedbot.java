@@ -5,7 +5,10 @@ public class ThreadRedbot extends Thread {
 	private Nodo nodo;
 	private int prof;
 	
-	public ThreadRedbot(){
+	private String nombre;
+	
+	public ThreadRedbot(String s){
+		this.nombre = s;
 	}
 
 	public void addNodo(Nodo nodo,int prof){
@@ -19,11 +22,18 @@ public class ThreadRedbot extends Thread {
 	 */
 	@Override
 	public void run() {
-		System.out.println("INICIO THREAD PROCESAR NODO :::::::::: "+this.nodo.getUrl());
-		Estructuras e = Estructuras.getInstance();
-		e.procesarURL(this.nodo, this.prof,true);
-		System.out.println("FIND THREAD PROCESAR NODO :::::::::: "+this.nodo.getUrl());
-		Estructuras.cantThreads++;
+		try {
+			System.out.println("INICIO THREAD PROCESAR NODO :::::::::: " + this.nombre);
+			Thread.sleep(5*1000);
+			if (this.nombre.equals("Hilo 2")) {
+				this.wait();
+			} else {
+				notify();
+			}
+			System.out.println("FIN THREAD PROCESAR NODO :::::::::: " + this.nombre);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public Nodo getNodo() {

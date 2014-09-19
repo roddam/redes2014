@@ -1,6 +1,13 @@
 package main;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.InetAddress;
+import java.net.Socket;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -74,10 +81,20 @@ public class Nodo {
 		return this.toString().equals(n.toString());
 	}
 
-	// /**
-	// * main para pruebas
-	// * @param args
-	// */
-	// public static void main(String[] args) {
-	// }
+	/**
+	 * main para pruebas
+	 * 
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		try {
+			ThreadRedbot t = new ThreadRedbot("Hilo 1");
+			ThreadRedbot t2 = new ThreadRedbot("Hilo 2");
+			t2.start();
+			Thread.sleep(5*1000);
+			t.start();
+		} catch(Exception e) {
+			e.printStackTrace();
+		}
+	}
 }
