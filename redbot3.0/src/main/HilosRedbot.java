@@ -2,6 +2,7 @@ package main;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
 
 public class HilosRedbot extends Thread {
@@ -62,15 +63,18 @@ public class HilosRedbot extends Thread {
 	 * Creo el mensaje GET dependiendo de las variables de control
 	 */
 	public String obtenerMensajeGET(URL url) {
-		// FIXME arreglar el mensaje
 		String result = "GET ";
-		// result = url.getPath().equals("") ? result + "/" : result +
-		// url.getPath();
-		// result = result + " HTTP/1.1\n";
-		// result = result + "Connection: keep-alive\n";
-		// result = result + "Host: " + url.getHost();
-		// result = result + "\n";
-		// result = result + "Accept: text/html\n";
+		String path = url.getPath().equals("") ? "/" : url.getPath();
+		if (this.prx) {
+			result = url.getProtocol() + "://" + url.getHost() + ":" + url.getPort() + path;
+		} else {
+			result = result + path;
+		}
+		result = this.persistent ? result + " HTTP/1.1\n" : result + " HTTP/1.0\n";
+		result = this.persistent ? result + "Connection: keep-alive\n" : result + "Connection: close\n";
+		result = result + "Host: " + url.getHost();
+		result = result + "\n";
+		result = result + "Accept: text/html\n";
 		return result;
 	}
 
@@ -102,9 +106,18 @@ public class HilosRedbot extends Thread {
 	/**
 	 * Genero una URL a partir del string encontrado durante el procesamiento
 	 */
-	public URL stringToURL(String string) {
+	public URL stringToURL(String string, URL url, int puerto) throws MalformedURLException {
 		URL urlGenerada = null;
-
+		string = string.replaceAll("'", "");
+		string = string.replaceAll("\"", "");
+		if (!string.startsWith("http") && !string.startsWith("https") && !string.startsWith("#")){
+			if( !string.startsWith("/")){
+				string = url.getProtocol() + "://" + url.getHost() + ":" + puerto + "/"+ string;
+			} else {
+				string = url.getProtocol() + "://" + url.getHost() + ":" + puerto + string;
+			}
+		}
+		urlGenerada = new URL(string);
 		return urlGenerada;
 	}
 
