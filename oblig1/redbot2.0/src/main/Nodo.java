@@ -87,14 +87,6 @@ public class Nodo {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		try {
-			ThreadRedbot t = new ThreadRedbot("Hilo 1");
-			ThreadRedbot t2 = new ThreadRedbot("Hilo 2");
-			t2.start();
-			Thread.sleep(5*1000);
-			t.start();
-		} catch(Exception e) {
-			e.printStackTrace();
-		}
+		
 	}
 }
