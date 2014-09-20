@@ -1,10 +1,10 @@
 package main;
 
-public class ProcesamientoChapa implements Runnable {
+public class Productor implements Runnable {
 	
 	private Procesamiento q;
 
-	public ProcesamientoChapa(Procesamiento q) {
+	public Productor(Procesamiento q) {
 		this.q = q;
 		new Thread(this, "Producer").start();
 	}

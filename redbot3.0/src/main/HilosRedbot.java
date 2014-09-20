@@ -147,6 +147,186 @@ public class HilosRedbot extends Thread {
 		urlGenerada = new URL(string);
 		return urlGenerada;
 	}
+	
+	private String replaceInvalidChar(String link) {
+		link = link.replaceAll("'", "");
+		link = link.replaceAll("\"", "");
+		
+		return link;
+	}
+	
+	/**
+	 * Metodos para probar algo
+	 */
+	public static boolean semaforoUrlsSinProcesar = true;
+	public synchronized Nodo getUrlSinProcesar() {
+		System.out.println("Soy el hilo " + this.idHilo + " y quiero una URL");
+		if (!semaforoUrlsSinProcesar) {
+			try {
+				System.out.println("Soy el hilo " + this.idHilo + " y me vopy a dormir");
+				wait();
+				System.out.println("Soy el hilo " + this.idHilo + " y me despertaron");
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+		Nodo url = Estructuras.getUrlSinProcesar();
+		semaforoUrlsSinProcesar = false;
+//		System.out.println("ANTES NOTIFY GET " + this.idHilo);
+//		notifyAll();
+//		System.out.println("DESPUES NOTIFY GET " + this.idHilo);
+		return url;
+	}
+	
+	public synchronized void setUrlsSinProcesar(Nodo n){
+		System.out.println("Soy el hilo " + this.idHilo + " y voy a agregar la URL con profundidad " + n.getNivel() + " ### " + n.toString());
+		Estructuras.setUrlsSinProcesar(n);
+		semaforoUrlsSinProcesar = true;
+		System.out.println("ANTES NOTIFY PUT " + this.idHilo);
+		notifyAll();
+		System.out.println("DESPUES NOTIFY PUT " + this.idHilo);
+	}
+	
+	public synchronized boolean quedanNodosPorProcesar() {
+		return Estructuras.quedanNodosPorProcesar();
+	}
+	
+	public synchronized boolean hayHilosProcesando(int idHilo) {
+		return hayHilosProcesando(this.idHilo);
+	}
+	
+	public synchronized boolean estaVisitado(String s) {
+		return Estructuras.estaVisitado(s);
+	}
+	
+	public synchronized void agregarVisitado(String s) {
+		Estructuras.agregarVisitado(s);
+	}
+	/*********************************************/
+
+	public void procesarNodo(Nodo nodo) {
+		try {
+			/*
+			 * Obtengo la direccion IP y el puerto del host contra el que quiero
+			 * abrir el socket
+			 */
+			System.out.println(nodo.getUrl().toString());
+			InetAddress ia = InetAddress.getByName(nodo.getUrl().getHost());
+			int puerto = nodo.getUrl().getPort() == -1 ? puertoDefecto : nodo
+					.getUrl().getPort();
+
+			/*
+			 * Abro el socket y creo un flujo de datos para mandarle el mensaje
+			 * GET
+			 */
+			Socket sc = new Socket(ia, puerto);
+			PrintWriter pw = new PrintWriter(sc.getOutputStream());
+			pw.println(this.obtenerMensajeGET(nodo.getUrl()));
+			pw.flush();
+
+			/*
+			 * Abro un flujo de datos por el cual voy a recibir el mensaje de
+			 * respuesta enviado
+			 */
+			BufferedReader br = new BufferedReader(new InputStreamReader(
+					sc.getInputStream()));
+
+			/*
+			 * Primero leo el cabezal para verificar que esta todo bien y
+			 * analizar de que manera leer el mensaje de respuesta que se esta
+			 * enviando
+			 */
+			Hashtable<String, String> hashCabezal = procesarCabezal(br);
+
+			if (hashCabezal.get("CODE_ERROR").equals("200")
+					&& hashCabezal.get("Content-Type").contains("text/html")) {
+				String html = br.readLine();
+
+				this.patternTag = Pattern.compile(HTML_A_TAG_PATTERN);
+				this.patternLink = Pattern.compile(HTML_A_HREF_TAG_PATTERN);
+				this.patternMailTo = Pattern.compile(HTML_MAILTO_PATTERN);
+				while (html != null) {
+					this.matcherTag = this.patternTag.matcher(html);
+					while (this.matcherTag.find()) {
+						Nodo n = new Nodo(nodo.getNivel() + 1, null);
+
+						String href = this.matcherTag.group(1); // href
+						if (href == null) {
+							System.out.println("HREF NULLL ");
+						}
+						this.matcherLink = this.patternLink.matcher(href);
+						while (this.matcherLink.find()) {
+							String link = this.matcherLink.group(1); // link
+
+							link = replaceInvalidChar(link);
+							this.matcherMailTo = this.patternMailTo
+									.matcher(link);
+							if (this.matcherMailTo.find()) {
+								String mailTo = this.matcherMailTo.group(1);
+								nodo.getListaMails().add(mailTo);
+							} else {
+								try {
+									if (!link.startsWith("http")
+											&& !link.startsWith("https")
+											&& !link.startsWith("#")) {
+										if (!link.startsWith("/")) {
+											link = nodo.getUrl().getProtocol()
+													+ "://"
+													+ nodo.getUrl().getHost()
+													+ ":" + puerto + "/" + link;
+										} else {
+											link = nodo.getUrl().getProtocol()
+													+ "://"
+													+ nodo.getUrl().getHost()
+													+ ":" + puerto + link;
+										}
+
+									}
+
+									URL url = new URL(link);
+									String protocol = url.getProtocol();
+									if (!protocol.equals("https")) {
+										n.setUrl(url);
+										nodo.getAdyacentes().add(n);
+										// FIXME
+										setUrlsSinProcesar(n);
+									}
+								} catch (MalformedURLException exp) {
+									// System.out.println(exp.getMessage());
+								}
+							}
+						}
+					}
+					html = br.readLine();
+				}
+			} else {
+				
+				System.out.println(hashCabezal.get("CODE_ERROR") + " ::: "
+						+ hashCabezal.get("CODE_MSG"));
+
+			}
+			/*
+			 * luego de procesar el html, agrego la URL procesada a la lista de
+			 * URLs visitadas
+			 */
+			// FIXME
+			if (!estaVisitado(nodo.toString())) {
+				System.out.println("Hay que ver porque esta visitado " + nodo.toString());
+				agregarVisitado(nodo.toString());
+			}
+
+			/*
+			 * cierro el socket y el flujo de datos por el cual rescibia la
+			 * respuesta
+			 */
+			br.close();
+			sc.close();
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 
 	/**
 	 * Metodo que realiza todo el procesamiento de una URL
@@ -156,10 +336,15 @@ public class HilosRedbot extends Thread {
 		// Obtengo una URL para procesar
 		boolean faltaProcesar = true;
 		while (faltaProcesar) {
-			Nodo nodoSinProcesar = Estructuras.getUrlSinProcesar();
+			//FIXME
+			Nodo nodoSinProcesar = getUrlSinProcesar();
 			if (nodoSinProcesar != null) {
-				if(nodoSinProcesar.getNivel() <= profundidad)
-				procesarNodo(nodoSinProcesar);
+				semaforoUrlsSinProcesar = true;
+				if(nodoSinProcesar.getNivel() <= profundidad) {
+					procesarNodo(nodoSinProcesar);
+				} else {
+					System.out.println("mE DIERON UNA url QUE NO VOY A PROCESAR POR PROFUNDIDAD");
+				}
 				// Si hay una URL disponible, la proceso.
 				// Actualizo los pozos, los loops, los visitados, los
 				// multilenguaje
@@ -168,39 +353,39 @@ public class HilosRedbot extends Thread {
 				// encontrando
 				// Despierto a los hilos que pudiesen estar esperando que yo
 				// termine de procesar.
-				// FIXME Procesar URL.
 				imprimirMail(nodoSinProcesar);
-				this.notifyAll();
+			} else {
+				System.out.println("No me dieron nada");
 			}
 			// Despues de procesar me fijo si no hay ninguna URL para procesar y
 			// si hay algun hilo ejecutando que no sea yo mismo
-			if (!Estructuras.quedanNodosPorProcesar()){
-				if( Estructuras.hayHilosProcesando(this.idHilo)) {
+			//FIXME
+//			if (!quedanNodosPorProcesar()){
+//				if( hayHilosProcesando(this.idHilo)) {
 	//				// Si no hay ninguna URL para procesar y hay algun hilo
 	//				// ejecutando, podrian aparecer mas URLs a procesar.
 	//				// Entonces me duermo, esperando que alguno de los hilos que
 	//				// estan procesando me despierte.
 	//				// FIXME me tengo que dormir
-					System.out.println("Dice rodrigo que esto no se imprime.");
-					try {
-						wait();
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-				}else {
+//					System.out.println("Dice rodrigo que esto no se imprime.");
+//					try {
+//						wait();
+//					} catch (InterruptedException e) {
+//						e.printStackTrace();
+//					}
+//				}else {
 //					// Si no hay ninguna URL para procesar y no hay hilos
 //					// procesando,
 //					// entonces soy el ultimo que quedo procesando y no genere
 //					// ninguna URL nueva.
 //					// Entonces fin procesamiento del hilo.
-					faltaProcesar = false;
-					System.out.println("Termine de procesar :D : " + this.idHilo);
-				}
-			} 
+//					faltaProcesar = false;
+//					System.out.println("Termine de procesar :D : " + this.idHilo);
+//				}
+//			} 
 		}
 	}
-
+	
 	public int getIdHilo() {
 		return idHilo;
 	}
@@ -292,128 +477,5 @@ public class HilosRedbot extends Thread {
 		for(String s:nodo.getListaMails()) {
 			System.out.println(s);
 		}
-	}
-	public void procesarNodo(Nodo nodo) {
-	try {
-		/*
-		 * Obtengo la direccion IP y el puerto del host contra el que quiero
-		 * abrir el socket
-		 */
-		System.out.println(nodo.getUrl().toString());
-		InetAddress ia = InetAddress.getByName(nodo.getUrl().getHost());
-		int puerto = nodo.getUrl().getPort() == -1 ? puertoDefecto
-				: nodo.getUrl().getPort();
-
-		/*
-		 * Abro el socket y creo un flujo de datos para mandarle el mensaje
-		 * GET
-		 */
-		Socket sc = new Socket(ia, puerto);
-		PrintWriter pw = new PrintWriter(sc.getOutputStream());
-		pw.println(this.obtenerMensajeGET(nodo.getUrl()));
-		pw.flush();
-
-		/*
-		 * Abro un flujo de datos por el cual voy a recibir el mensaje de
-		 * respuesta enviado
-		 */
-		BufferedReader br = new BufferedReader(new InputStreamReader(
-				sc.getInputStream()));
-
-		/*
-		 * Primero leo el cabezal para verificar que esta todo bien y
-		 * analizar de que manera leer el mensaje de respuesta que se esta
-		 * enviando
-		 */
-		Hashtable< String,String> hashCabezal = procesarCabezal(br);
-
-
-		if(hashCabezal.get("CODE_ERROR").equals("200") && hashCabezal.get("Content-Type").contains("text/html")){
-			String html = br.readLine();
-			
-			this.patternTag = Pattern.compile(HTML_A_TAG_PATTERN);
-			this.patternLink = Pattern.compile(HTML_A_HREF_TAG_PATTERN);
-			this.patternMailTo = Pattern.compile(HTML_MAILTO_PATTERN);
-			while (html != null) {
-				this.matcherTag = this.patternTag.matcher(html);
-				while (this.matcherTag.find()) {
-					Nodo n = new Nodo(nodo.getNivel() + 1, null);
-					
-					String href = this.matcherTag.group(1); // href
-					if (href == null) {
-						System.out.println("HREF NULLL ");
-					}
-					this.matcherLink = this.patternLink.matcher(href);
-					while (this.matcherLink.find()) {
-						String link = this.matcherLink.group(1); // link
-						
-						link = replaceInvalidChar(link);
-						this.matcherMailTo = this.patternMailTo.matcher(link);
-						if (this.matcherMailTo.find()) {
-							String mailTo = this.matcherMailTo.group(1);
-							nodo.getListaMails().add(mailTo);
-						}else {
-							try {
-								if (!link.startsWith("http") && !link.startsWith("https")
-										&&!link.startsWith("#")){
-									if( !link.startsWith("/")){
-										link = nodo.getUrl().getProtocol() + "://"
-										+ nodo.getUrl().getHost() + ":"
-										+ puerto + "/"+link;
-									} else {
-										link = nodo.getUrl().getProtocol() + "://"
-												+ nodo.getUrl().getHost() + ":"
-												+ puerto +link;
-									}
-									
-									
-								}
-								
-								URL url = new URL(link);
-								String protocol = url.getProtocol();
-								if (!protocol.equals("https")) {
-									n.setUrl(url);
-									nodo.getAdyacentes().add(n);
-									Estructuras.setUrlsSinProcesar(n);
-								}
-							} catch (MalformedURLException exp) {
-								//System.out.println(exp.getMessage());
-							}
-						}
-					}
-				}
-				html = br.readLine();
-			}
-		}else{
-			
-			System.out.println(hashCabezal.get("CODE_ERROR")+" ::: "+hashCabezal.get("CODE_MSG"));
-			
-		}
-		/*
-		 * luego de procesar el html, agrego la URL procesada a la lista de
-		 * URLs visitadas
-		 */
-		if (!Estructuras.estaVisitado(nodo.toString()) ){
-			Estructuras.agregarVisitado(nodo.toString());
-		}
-		
-		/*
-		 * cierro el socket y el flujo de datos por el cual rescibia la
-		 * respuesta
-		 */
-		br.close();
-		sc.close();
-	} catch (UnknownHostException e) {
-		e.printStackTrace();
-	} catch (IOException e) {
-		e.printStackTrace();
-	}
-}
-
-	private String replaceInvalidChar(String link) {
-		link = link.replaceAll("'", "");
-		link = link.replaceAll("\"", "");
-		
-		return link;
 	}
 }

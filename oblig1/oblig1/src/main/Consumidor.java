@@ -1,9 +1,9 @@
 package main;
 
-public class Redbot implements Runnable {
+public class Consumidor implements Runnable {
 	private Procesamiento q;
 
-	public Redbot(Procesamiento q) {
+	public Consumidor(Procesamiento q) {
 		this.q = q;
 		new Thread(this, "Consumer").start();
 	}
