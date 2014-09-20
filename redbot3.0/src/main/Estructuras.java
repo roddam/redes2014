@@ -38,7 +38,7 @@ public class Estructuras {
 	private static Set<String> setPozos = new HashSet<String>();
 	private static Set<String> setMultilenguaje = new HashSet<String>();
 	private static List<String> loops = new LinkedList<String>();
-	private static List<String> urlsSinProcesar = new LinkedList<String>();
+	private static List<Nodo> urlsSinProcesar = new LinkedList<Nodo>();
 	private static List<HilosRedbot> hilosDisponibles = new ArrayList<HilosRedbot>();
 	
 	private static Estructuras e = null;
@@ -141,7 +141,7 @@ public class Estructuras {
 		} else {
 			throw new IllegalArgumentException("Faltan parametros.");
 		}
-		Estructuras.urlsSinProcesar.add(args[args.length - 1]);
+		Estructuras.urlsSinProcesar.add(new Nodo(0,new URL(args[args.length - 1])));
 		for (int i = 0; i < cantThreads; i++) {
 			HilosRedbot h = new HilosRedbot(i, debug, depth, persistent, pozos, multilang, prx, 
 					profundidad, pozosFilename, multilangFilename, proxyURL);
@@ -186,20 +186,16 @@ public class Estructuras {
 		Estructuras.loops.add(loop);
 	}
 
-	public synchronized static String getUrlSinProcesar() {
-		String result = null;
+	public synchronized static Nodo getUrlSinProcesar() {
+		Nodo result = null;
 		if (!urlsSinProcesar.isEmpty()) {
-			result = urlsSinProcesar.remove(0);
+			result = urlsSinProcesar.remove(urlsSinProcesar.size() - 1);
 		}
 		return result;
 	}
-	
-	public synchronized static List<String> getUrlsSinProcesar() {
-		return urlsSinProcesar;
-	}
-
-	public synchronized static void setUrlsSinProcesar(List<String> urlsSinProcesar) {
-		Estructuras.urlsSinProcesar = urlsSinProcesar;
+		
+	public synchronized static void setUrlsSinProcesar(Nodo n) {
+		Estructuras.urlsSinProcesar.add(n);
 	}
 
 	public synchronized static List<HilosRedbot> getHilosDisponibles() {
