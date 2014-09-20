@@ -178,6 +178,10 @@ public class Estructuras {
 		Estructuras.setMultilenguaje.add(multilenguaje);
 	}
 
+	public synchronized static boolean quedanNodosPorProcesar(){
+		return !urlsSinProcesar.isEmpty();
+		
+	}
 //	public synchronized static List<String> getLoops() {
 //		return loops;
 //	}
@@ -209,7 +213,7 @@ public class Estructuras {
 	public synchronized static boolean hayHilosProcesando(int idHilo) {
 		boolean result = false;
 		for (HilosRedbot h : hilosDisponibles) {
-			if (h.getId() != idHilo && h.isAlive()) {
+			if (h.getIdHilo() != idHilo && h.isAlive()) {
 				result = true;
 				break;
 			}

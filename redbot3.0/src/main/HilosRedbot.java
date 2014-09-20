@@ -105,26 +105,29 @@ public class HilosRedbot extends Thread {
 	/**
 	 * Metodo para procesar solo el cabezal.
 	 */
-	public void procesarCabezal(BufferedReader br) throws IOException {
+	public Hashtable< String, String> procesarCabezal(BufferedReader br) throws IOException {
 		String html = br.readLine();
+		Hashtable<String, String> hashCabezal = new Hashtable<String, String>();
+		
 		while (!html.isEmpty()) {
 			if (html.contains("HTTP/")) {
-				// String[] values = html.split(" ");
-				// hashCabezal.put("CODE_ERROR",values[1].trim());
-				// hashCabezal.put("CODE_MSG",values[2].trim());
+				 String[] values = html.split(" ");
+				 hashCabezal.put("CODE_ERROR",values[1].trim());
+				 hashCabezal.put("CODE_MSG",values[2].trim());
 			} else if (html.startsWith("Content-Type")) {
-				// String[] values = html.split(":");
-				// hashCabezal.put(values[0].trim(), values[1].trim());
+				 String[] values = html.split(":");
+				 hashCabezal.put(values[0].trim(), values[1].trim());
 			} else if (html.startsWith("Content-Language")) {
-				// String[] values = html.split(":");
-				// hashCabezal.put(values[0].trim(), values[1].trim());
+				 String[] values = html.split(":");
+				 hashCabezal.put(values[0].trim(), values[1].trim());
 			} else if (html.startsWith("ETag")) {
-				// String[] values = html.split(":");
-				// hashCabezal.put(values[0].trim(),
-				// values[1].trim().replace("\"", ""));
+				 String[] values = html.split(":");
+				 hashCabezal.put(values[0].trim(),
+				 values[1].trim().replace("\"", ""));
 			}
 			html = br.readLine();
 		}
+		return hashCabezal;
 	}
 
 	/**
@@ -155,6 +158,7 @@ public class HilosRedbot extends Thread {
 		while (faltaProcesar) {
 			Nodo nodoSinProcesar = Estructuras.getUrlSinProcesar();
 			if (nodoSinProcesar != null) {
+				if(nodoSinProcesar.getNivel() <= profundidad)
 				procesarNodo(nodoSinProcesar);
 				// Si hay una URL disponible, la proceso.
 				// Actualizo los pozos, los loops, los visitados, los
@@ -165,24 +169,35 @@ public class HilosRedbot extends Thread {
 				// Despierto a los hilos que pudiesen estar esperando que yo
 				// termine de procesar.
 				// FIXME Procesar URL.
+				imprimirMail(nodoSinProcesar);
+				this.notifyAll();
 			}
 			// Despues de procesar me fijo si no hay ninguna URL para procesar y
 			// si hay algun hilo ejecutando que no sea yo mismo
-//			if (Estructuras.getUrlSinProcesar().isEmpty()
-//					&& Estructuras.hayHilosProcesando(this.idHilo)) {
-//				// Si no hay ninguna URL para procesar y hay algun hilo
-//				// ejecutando, podrian aparecer mas URLs a procesar.
-//				// Entonces me duermo, esperando que alguno de los hilos que
-//				// estan procesando me despierte.
-//				// FIXME me tengo que dormir
-//			} else {
-//				// Si no hay ninguna URL para procesar y no hay hilos
-//				// procesando,
-//				// entonces soy el ultimo que quedo procesando y no genere
-//				// ninguna URL nueva.
-//				// Entonces fin procesamiento del hilo.
-//				faltaProcesar = false;
-//			}
+			if (!Estructuras.quedanNodosPorProcesar()){
+				if( Estructuras.hayHilosProcesando(this.idHilo)) {
+	//				// Si no hay ninguna URL para procesar y hay algun hilo
+	//				// ejecutando, podrian aparecer mas URLs a procesar.
+	//				// Entonces me duermo, esperando que alguno de los hilos que
+	//				// estan procesando me despierte.
+	//				// FIXME me tengo que dormir
+					System.out.println("Dice rodrigo que esto no se imprime.");
+					try {
+						wait();
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}else {
+//					// Si no hay ninguna URL para procesar y no hay hilos
+//					// procesando,
+//					// entonces soy el ultimo que quedo procesando y no genere
+//					// ninguna URL nueva.
+//					// Entonces fin procesamiento del hilo.
+					faltaProcesar = false;
+					System.out.println("Termine de procesar :D : " + this.idHilo);
+				}
+			} 
 		}
 	}
 
@@ -273,7 +288,11 @@ public class HilosRedbot extends Thread {
 	public void setProxyURL(URL proxyURL) {
 		this.proxyURL = proxyURL;
 	}
-	
+	public void imprimirMail(Nodo nodo){
+		for(String s:nodo.getListaMails()) {
+			System.out.println(s);
+		}
+	}
 	public void procesarNodo(Nodo nodo) {
 	try {
 		/*
@@ -300,19 +319,17 @@ public class HilosRedbot extends Thread {
 		 */
 		BufferedReader br = new BufferedReader(new InputStreamReader(
 				sc.getInputStream()));
-		String html = br.readLine();
 
 		/*
 		 * Primero leo el cabezal para verificar que esta todo bien y
 		 * analizar de que manera leer el mensaje de respuesta que se esta
 		 * enviando
 		 */
-		Hashtable< String,String> hashCabezal = new Hashtable<String, String>();
-		
-		procesarCabezal(br);
+		Hashtable< String,String> hashCabezal = procesarCabezal(br);
+
 
 		if(hashCabezal.get("CODE_ERROR").equals("200") && hashCabezal.get("Content-Type").contains("text/html")){
-			html = br.readLine();
+			String html = br.readLine();
 			
 			this.patternTag = Pattern.compile(HTML_A_TAG_PATTERN);
 			this.patternLink = Pattern.compile(HTML_A_HREF_TAG_PATTERN);
