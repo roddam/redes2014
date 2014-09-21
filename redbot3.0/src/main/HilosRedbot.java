@@ -110,9 +110,12 @@ public class HilosRedbot extends Thread {
 				String[] values = html.split(":");
 				hashCabezal.put(values[0].trim(), values[1].trim());
 			} else if (html.startsWith("Content-Language")) {
-				estructuras.agregarMultilenguaje(nodo.toString());
 				String[] values = html.split(":");
 				hashCabezal.put(values[0].trim(), values[1].trim());
+				String[] leng = values[1].split(",");
+				if (leng.length > 1) {
+					estructuras.agregarMultilenguaje(nodo.toString(), values[1]);
+				}
 			} else if (html.startsWith("ETag")) {
 				String[] values = html.split(":");
 				hashCabezal.put(values[0].trim(), values[1].trim().replace("\"", ""));
@@ -256,6 +259,7 @@ public class HilosRedbot extends Thread {
 			}
 		} catch (Exception e) {
 			System.out.println("Se ha producido un error inesperado.");
+			e.printStackTrace();
 		}
 	}
 

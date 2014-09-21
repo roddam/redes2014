@@ -1,6 +1,8 @@
 package main;
 
-import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -179,7 +181,9 @@ public class Estructuras {
 		Estructuras.setPozos.add(pozo);
 	}
 
-	public synchronized void agregarMultilenguaje(String multilenguaje) {
+	public synchronized void agregarMultilenguaje(String multilenguaje, String lengs) {
+		multilenguaje = multilenguaje + ": " + lengs;
+		System.out.println(multilenguaje);
 		Estructuras.setMultilenguaje.add(multilenguaje);
 	}
 
@@ -253,10 +257,10 @@ public class Estructuras {
 		seTerminoProcesamiento = true;
 		notifyAll();
 		if (pozos) {
-			guardarListasArchivo(pozosFilename);
+			guardarListasArchivo(setPozos, pozosFilename);
 		}
 		if (multilang) {
-			guardarListasArchivo(multilangFilename);
+			guardarListasArchivo(setMultilenguaje, multilangFilename);
 		}
 	}
 
@@ -264,9 +268,21 @@ public class Estructuras {
 		hilosEjecutando[idHilo] = false;
 	}
 
-	public synchronized void guardarListasArchivo(String rutaArchivo){
-		File archivo = new File(rutaArchivo);
-		if (archivo.exists()) {
+	public synchronized void guardarListasArchivo(Set<String> elems, String rutaArchivo){
+		FileWriter archivo = null;
+		PrintWriter escritor = null;
+		try {
+			archivo = new FileWriter(rutaArchivo);
+			escritor = new PrintWriter(archivo);
+			for (String s : elems) {
+				escritor.println(s);
+			}
+		} catch (IOException e) {
+			System.out.println("Se produjo un error al intentar guardar los Pozos.");
+		} finally {
+			if (escritor != null) {
+				escritor.close();
+			}
 		}
 	}
 	
