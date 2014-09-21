@@ -1,36 +1,18 @@
 package main;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.InetAddress;
-import java.net.Socket;
-import java.net.URL;
-import java.net.UnknownHostException;
 import java.util.LinkedList;
 import java.util.List;
 
 public class Nodo {
 
-	private List<String> mailsEncontrados;
+	private String nombre;
+	private List<Nodo> padres;
 	private List<Nodo> adyacentes;
-	private URL url;
-	private int prof;
-	private List<String> camino;
 
-	public Nodo() {
+	public Nodo(String nombre) {
 		this.adyacentes = new LinkedList<Nodo>();
-		this.mailsEncontrados = new LinkedList<String>();
-		this.camino = new LinkedList<String>();
-	}
-
-	public URL getUrl() {
-		return url;
-	}
-
-	public void setUrl(URL url) {
-		this.url = url;
+		this.padres = new LinkedList<Nodo>();
+		this.nombre = nombre;
 	}
 
 	public List<Nodo> getAdyacentes() {
@@ -40,45 +22,28 @@ public class Nodo {
 	public void setAdyacentes(List<Nodo> adyacentes) {
 		this.adyacentes = adyacentes;
 	}
-
-	public int getProf() {
-		return prof;
+	
+	public String getNombre() {
+		return nombre;
 	}
 
-	public void setProf(int prof) {
-		this.prof = prof;
+	public void setNombre(String nombre) {
+		this.nombre = nombre;
 	}
 
-	public List<String> getMailsEncontrados() {
-		return mailsEncontrados;
+	public List<Nodo> getPadres() {
+		return padres;
 	}
 
-	public void setMailsEncontrados(List<String> mailsEncontrados) {
-		this.mailsEncontrados = mailsEncontrados;
-	}
-
-	public List<String> getCamino() {
-		return camino;
-	}
-
-	public void setCamino(List<String> camino) {
-		this.camino = camino;
-	}
-
-	/**
-	 * crea un Srting asociado a un nodo de la siguiente manera:
-	 * URL.protocol://URL.host:URL.portURL.path
-	 */
-	public String toString() {
-		return this.getUrl().getProtocol() + "://" + this.getUrl().getHost()
-				+ ":" + this.getUrl().getPort() + this.getUrl().getPath();
+	public void setPadres(List<Nodo> padres) {
+		this.padres = padres;
 	}
 
 	/**
 	 * Verifica si dos nodos son iguales, comparando las url asociadas.
 	 */
 	public boolean equals(Nodo n) {
-		return this.toString().equals(n.toString());
+		return this.nombre.equals(n.getNombre());
 	}
 
 	/**
@@ -87,6 +52,36 @@ public class Nodo {
 	 * @param args
 	 */
 	public static void main(String[] args) {
+		Nodo n0 = new Nodo("nodo0");
+		Nodo n1 = new Nodo("nodo1");
+		Nodo n2 = new Nodo("nodo2");
+		Nodo n3 = new Nodo("nodo3");
+		Nodo n4 = new Nodo("nodo4");
+		Nodo n5 = new Nodo("nodo5");
 		
+		n0.getPadres().add(n4);
+		n1.getPadres().add(n3);
+		n2.getPadres().add(n0);
+		n2.getPadres().add(n1);
+		n3.getPadres().add(n2);
+		n3.getPadres().add(n4);
+		n4.getPadres().add(n1);
+		n4.getPadres().add(n5);
+		n5.getPadres().add(n1);
+		n5.getPadres().add(n0);
+		
+		n0.getAdyacentes().add(n2);
+		n0.getAdyacentes().add(n5);
+		n1.getAdyacentes().add(n2);
+		n1.getAdyacentes().add(n4);
+		n1.getAdyacentes().add(n5);
+		n2.getAdyacentes().add(n3);
+		n3.getAdyacentes().add(n1);
+		n4.getAdyacentes().add(n0);
+		n4.getAdyacentes().add(n3);
+		n5.getAdyacentes().add(n4);
+		
+		Estructuras e = new Estructuras();
+		e.encontrarLoops(n3, n1, n3);
 	}
 }

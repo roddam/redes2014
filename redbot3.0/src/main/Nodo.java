@@ -11,12 +11,14 @@ public class Nodo {
 	private int nivel;
 	private URL url;
 	private List<Nodo> adyacentes;
+	private List<Nodo> padres;
 	private Set<String> listaMails;
 	
 	public Nodo(int nivel, URL url) {
 		super();
 		this.nivel = nivel;
 		this.adyacentes = new LinkedList<Nodo>();
+		this.padres = new LinkedList<Nodo>();
 		this.url = url;
 		this.listaMails = new HashSet<String>();
 	}
@@ -53,6 +55,14 @@ public class Nodo {
 		this.listaMails = listaMails;
 	}
 	
+	public List<Nodo> getPadres() {
+		return padres;
+	}
+
+	public void setPadres(List<Nodo> padres) {
+		this.padres = padres;
+	}
+
 	@Override
 	public String toString() {
 		return this.getUrl().getProtocol() + "://" + this.getUrl().getHost()

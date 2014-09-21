@@ -3,7 +3,6 @@ package main;
 public class ArbolesBusquedas {
 
 	public static void main(String[] args) {
-		// TODO Auto-generated method stub
 		
 		NodoArbol raiz = new NodoArbol("URL_inicial",true);
 		
@@ -29,7 +28,7 @@ public class ArbolesBusquedas {
 		NodoArbol aux  = raiz;
 		while(aux.getHijos().iterator().hasNext()){
 			NodoArbol hijo = aux.getHijos().get(0);
-			//recuersión (hijo)
+			//recuersiï¿½n (hijo)
 		
 		}
 		
